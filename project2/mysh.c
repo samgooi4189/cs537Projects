@@ -143,49 +143,58 @@ int main(int argc, char **argv) {
 				i++;
 			}
 			
-			pid_t childpid = fork();
+			// check whether the cmd is built in or not
+			if(strcmp(token[0], cmdCd) == 0) { // cd?
 			
-			if(childpid >= 0) { // succeed
-				if(childpid == 0) { // child
+				int st = cd(token[1]);
 				
-					// check whether the cmd is built in or not
-					if(strcmp(token[0], cmdCd) == 0) { // cd?
-						int st = cd(token[1]);
-						
-						if(st == -1) {
-							printError();
-						}
-						myExit(0);
-					} else if (strcmp(token[0], cmdPwd) == 0) { // pwd?
-						int st = pwd();
-						
-						if(st == -1) {
-							printError();
-						}
-						myExit(0);
-					} else if (strcmp(token[0], cmdExit) == 0) { // exit?
-						myExit(0);
-					} else { // not built in, use execvp!
+				if(st == -1) {
+					printError();
+				}
+				
+			} else if (strcmp(token[0], cmdPwd) == 0) { // pwd?
+			
+				int st = pwd();
+				
+				if(st == -1) {
+					printError();
+				}
+				
+			} else if (strcmp(token[0], cmdExit) == 0) { // exit?
+			
+				myExit(0);
+				
+			} else { // not built in, create child process
+				
+				pid_t childpid = fork();
+			
+				if(childpid >= 0) { // succeed
+					if(childpid == 0) { // child
+					
+						// not built in, use execvp!
 						execvp(token[0], token);
 						printError();
-					}	
-					
-					// EXAMPLE
-// 					char *cmd[1];
-// 					cmd[0] = "ls";
-// 					cmd[1] = NULL;
-// 					
-// 					execvp(cmd[0], cmd);
-// 					printError(); // if execvp return, then error!
-				} else { // parent
-					//wait(&status); // wait for children to finish?
-					if(waitpid(childpid, NULL, 0) != childpid) {
-						printError();
+						
+						
+						// EXAMPLE
+	// 					char *cmd[1];
+	// 					cmd[0] = "ls";
+	// 					cmd[1] = NULL;
+	// 					
+	// 					execvp(cmd[0], cmd);
+	// 					printError(); // if execvp return, then error!
+					} else { // parent
+						//wait(&status); // wait for children to finish?
+						if(waitpid(childpid, NULL, 0) != childpid) {
+							printError();
+						}
 					}
+				} else {
+					printError();
 				}
-			} else {
-				printError();
 			}
+			
+			
 			
 			flush(); // use my own flush!			
 			printf("mysh> ");
@@ -199,6 +208,7 @@ int main(int argc, char **argv) {
 
 	} else {
 		// ERROR invalid # of arguments
+		printError();
 	}
 	
 	return 0;
