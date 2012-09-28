@@ -78,31 +78,41 @@ int main(int argc, char **argv) {
 		// interactive mode
 		printf("mysh> ");
 		
+<<<<<<< HEAD
 		//fgets(usrInput, sizeof(usrInput), stdin); // get input
 		//stripEndNewLine(usrInput);
 		
+=======
+>>>>>>> 43b322a8036f88cbb0cde37bdbd181b79bea4c14
 		char usrInput[512];  
 		char *exitStr = "exit\n";
 		char *newLine = "\n";
 		char *cmdCd = "cd";
 		char *cmdPwd = "pwd";
 		char *cmdExit = "exit";
+		char *token[512]; // very bad i know!
 		
+<<<<<<< HEAD
 		int status;
 		char *token[512]; // very bad i know!
 		
 		//while( (fgets(usrInput, sizeof(usrInput), stdin) != NULL) && strcmp(usrInput, exitStr) != 0) {
+=======
+>>>>>>> 43b322a8036f88cbb0cde37bdbd181b79bea4c14
 		while((fgets(usrInput, sizeof(usrInput), stdin) != NULL) && (strcmp(usrInput, exitStr) != 0)) {
 			
 			if(strlen(usrInput) == 1) { // empty command (carriage ret.)? continue!
 				printf("mysh> "); // dont forget prompt!
-				//fgets(usrInput, sizeof(usrInput), stdin); // get input
-				//stripEndNewLine(usrInput);
 				continue;
 			}
 			
 			stripEndNewLine(usrInput);
 			char *cmdArg = strtok(usrInput, " ");
+			
+			if(cmdArg == NULL) { // user enter space only?
+				printf("mysh> "); // dont forget prompt!
+				continue;
+			}
 			
 			int c = 0;
 			
@@ -127,11 +137,11 @@ int main(int argc, char **argv) {
 				i++;
 			}
 			
-			pid_t childpid = fork();
-			
-			if(childpid >= 0) { // succeed
-				if(childpid == 0) { // child
+			// check whether the cmd is built in or not
+			if(strcmp(token[0], cmdCd) == 0) { // cd?
+				int st = cd(token[1]);
 				
+<<<<<<< HEAD
 					// check whether the cmd is built in or not
 					if(strcmp(token[0], cmdCd) == 0) { // cd?
 						int st = cd(token[1]);
@@ -161,23 +171,57 @@ int main(int argc, char **argv) {
 // 					printError(); // if execvp return, then error!
 				} else { // parent
 					wait(&status); // wait for children to finish?
+=======
+				if(st == -1) {
+					printError();
 				}
-			} else {
-				printError();
+			} else if (strcmp(token[0], cmdPwd) == 0) { // pwd?
+				int st = pwd();
+				
+				if(st == -1) {
+					printError();
+				}
+			} else if (strcmp(token[0], cmdExit) == 0) { // exit?
+				myExit(0);
+			} else { // not built in, use child
+				
+				pid_t childpid = fork();
+				
+				if(childpid >= 0) { // succeed
+					if(childpid == 0) { // child
+						execvp(token[0], token);
+						printError();
+
+					} else { // parent
+						// wait for child
+						if(waitpid(childpid, NULL, 0) != childpid) {
+							printError();
+						}
+					}
+				} else {
+					printError();
+>>>>>>> 43b322a8036f88cbb0cde37bdbd181b79bea4c14
+				}
 			}
 			
 			flush(); // use my own flush!			
 			printf("mysh> ");
-			//fgets(usrInput, sizeof(usrInput), stdin); // get input
-			//stripEndNewLine(usrInput);
 		
 		}
 		
 		printf("exit it is then..\n");
+<<<<<<< HEAD
 		exit(0);
 
 	} else {
 		// ERROR invalid # of arguments
+=======
+		myExit(0);
+
+	} else {
+		// ERROR invalid # of arguments
+		printError();
+>>>>>>> 43b322a8036f88cbb0cde37bdbd181b79bea4c14
 	}
 	
 	return 0;
