@@ -71,22 +71,23 @@ int main(int argc, char **argv) {
 	if(argc == 2 ) { // batch mode
 	
 		batchFile = argv[1];
-		printf("Batchfiles : %s\n", batchFile);	
+		//printf("Batchfiles : %s\n", batchFile);	
 
-		FILE *fopen(), fd;
-		fd = fopen("testfile.txt", "r");
+		FILE* fd;
+		fd = (FILE *)fopen(batchFile, "r");
 		if(fd == NULL){
 			printf("File not found");
 			exit(0);
 		}
 
-		int c = getc(fd);
-		while (c!= EOF)
-   		{
-   			putchar(c);
-			c = getc(fp);
-   		}
-   		fclose(fp);
+		char line[512];
+		//int c = getc(fd);
+		while(fgets(line, sizeof(line), fd) != NULL){
+			//line contains command
+			printf("%s",line);
+		}
+
+   		fclose(fd);
 		
 	} else if(argc == 1) {
 	
