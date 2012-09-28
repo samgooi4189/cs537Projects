@@ -96,6 +96,11 @@ int main(int argc, char **argv) {
 			stripEndNewLine(usrInput);
 			char *cmdArg = strtok(usrInput, " ");
 			
+			if(cmdArg == NULL) { // user enter space only?
+				printf("mysh> "); // dont forget prompt!
+				continue;
+			}
+			
 			int c = 0;
 			
 			while(cmdArg != NULL) {
