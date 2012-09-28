@@ -173,7 +173,7 @@ int main(int argc, char **argv) {
 		
 		}
 		
-		printf("exit it is then..\n");
+		printf("exit it is then!\n");
 		exit(0);
 
 	} else {
