@@ -155,14 +155,14 @@ int main(int argc, char **argv) {
 						if(st == -1) {
 							printError();
 						}
-						_exit(0);
+						myExit(0);
 					} else if (strcmp(token[0], cmdPwd) == 0) { // pwd?
 						int st = pwd();
 						
 						if(st == -1) {
 							printError();
 						}
-						_exit(0);
+						myExit(0);
 					} else if (strcmp(token[0], cmdExit) == 0) { // exit?
 						myExit(0);
 					} else { // not built in, use execvp!
