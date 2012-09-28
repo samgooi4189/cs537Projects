@@ -29,7 +29,7 @@ void printError() {
 }
 
 // my own exit function
-void myExit(int status) {
+void exit(int status) {
 	exit(status);
 }
 
@@ -71,23 +71,7 @@ int main(int argc, char **argv) {
 	if(argc == 2 ) { // batch mode
 	
 		batchFile = argv[1];
-		//printf("Batchfiles : %s\n", batchFile);	
-
-		FILE* fd;
-		fd = (FILE *)fopen(batchFile, "r");
-		if(fd == NULL){
-			printf("File not found");
-			exit(0);
-		}
-
-		char line[512];
-		//int c = getc(fd);
-		while(fgets(line, sizeof(line), fd) != NULL){
-			//line contains command
-			printf("%s",line);
-		}
-
-   		fclose(fd);
+		printf("Batchfiles : %s\n", batchFile);	
 		
 	} else if(argc == 1) {
 	
@@ -97,36 +81,19 @@ int main(int argc, char **argv) {
 		//fgets(usrInput, sizeof(usrInput), stdin); // get input
 		//stripEndNewLine(usrInput);
 		
-		char* usrInput;
-		char buffer[512];  
+		char usrInput[512];  
 		char *exitStr = "exit\n";
 		char *newLine = "\n";
 		char *cmdCd = "cd";
 		char *cmdPwd = "pwd";
 		char *cmdExit = "exit";
 		
-
-		//int status;
-		char* token[512]; // very bad i know!
-		int initCheck =0;
-		while(fgets(buffer, sizeof(buffer),stdin) != NULL){
-			printf("I am in fgets loop\n");
-			if(initCheck == 0){
-				usrInput = strdup(buffer);
-				initCheck = 1;
-				printf("I am in initCheck\n");
-			}
-			else{
-				printf("Too much argument\n");
-				flush();
-				return 0;
-			}
-		}
-		printf("I gone through fgets");
-
+		int status;
+		char *token[512]; // very bad i know!
+		
 		//while( (fgets(usrInput, sizeof(usrInput), stdin) != NULL) && strcmp(usrInput, exitStr) != 0) {
-		//while((fgets(usrInput, sizeof(usrInput), stdin) != NULL) && (strcmp(usrInput, exitStr) != 0)) {
-		while(strcmp(usrInput, exitStr) != 0) {	
+		while((fgets(usrInput, sizeof(usrInput), stdin) != NULL) && (strcmp(usrInput, exitStr) != 0)) {
+			
 			if(strlen(usrInput) == 1) { // empty command (carriage ret.)? continue!
 				printf("mysh> "); // dont forget prompt!
 				//fgets(usrInput, sizeof(usrInput), stdin); // get input
@@ -172,16 +139,14 @@ int main(int argc, char **argv) {
 						if(st == -1) {
 							printError();
 						}
-						myExit(0);
 					} else if (strcmp(token[0], cmdPwd) == 0) { // pwd?
 						int st = pwd();
 						
 						if(st == -1) {
 							printError();
 						}
-						myExit(0);
 					} else if (strcmp(token[0], cmdExit) == 0) { // exit?
-						myExit(0);
+						exit(0);
 					} else { // not built in, use execvp!
 						execvp(token[0], token);
 						printError();
@@ -195,27 +160,24 @@ int main(int argc, char **argv) {
 // 					execvp(cmd[0], cmd);
 // 					printError(); // if execvp return, then error!
 				} else { // parent
-					//wait(&status); // wait for children to finish?
-					if(waitpid(childpid, NULL, 0) != childpid) {
-						printError();
-					}
+					wait(&status); // wait for children to finish?
 				}
 			} else {
 				printError();
 			}
 			
-			//flush(); // use my own flush!			
+			flush(); // use my own flush!			
 			printf("mysh> ");
 			//fgets(usrInput, sizeof(usrInput), stdin); // get input
 			//stripEndNewLine(usrInput);
 		
 		}
 		
-		printf("exit it is then!\n");
-		myExit(0);
+		printf("exit it is then..\n");
+		exit(0);
 
 	} else {
-		;// ERROR invalid # of arguments
+		// ERROR invalid # of arguments
 	}
 	
 	return 0;
