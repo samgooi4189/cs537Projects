@@ -105,8 +105,8 @@ int main(int argc, char **argv) {
 		char *cmdPwd = "pwd";
 		char *cmdExit = "exit";
 		
-
-		//int status;
+<<<<<<< HEAD
+		int status;
 		char* token[512]; // very bad i know!
 		int initCheck =0;
 		while(fgets(buffer, sizeof(buffer),stdin) != NULL){
@@ -123,7 +123,11 @@ int main(int argc, char **argv) {
 			}
 		}
 		printf("I gone through fgets");
-
+=======
+		//int status;
+		char *token[512]; // very bad i know!
+		
+>>>>>>> c796e5b230925f0533a9db31072a41dbf562d4e0
 		//while( (fgets(usrInput, sizeof(usrInput), stdin) != NULL) && strcmp(usrInput, exitStr) != 0) {
 		//while((fgets(usrInput, sizeof(usrInput), stdin) != NULL) && (strcmp(usrInput, exitStr) != 0)) {
 		while(strcmp(usrInput, exitStr) != 0) {	
