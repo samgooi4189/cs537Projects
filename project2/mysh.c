@@ -29,7 +29,7 @@ void printError() {
 }
 
 // my own exit function
-void exit(int status) {
+void myExit(int status) {
 	exit(status);
 }
 
@@ -139,14 +139,16 @@ int main(int argc, char **argv) {
 						if(st == -1) {
 							printError();
 						}
+						myExit(0);
 					} else if (strcmp(token[0], cmdPwd) == 0) { // pwd?
 						int st = pwd();
 						
 						if(st == -1) {
 							printError();
 						}
+						myExit(0);
 					} else if (strcmp(token[0], cmdExit) == 0) { // exit?
-						exit(0);
+						myExit(0);
 					} else { // not built in, use execvp!
 						execvp(token[0], token);
 						printError();
@@ -174,7 +176,7 @@ int main(int argc, char **argv) {
 		}
 		
 		printf("exit it is then!\n");
-		exit(0);
+		myExit(0);
 
 	} else {
 		// ERROR invalid # of arguments
