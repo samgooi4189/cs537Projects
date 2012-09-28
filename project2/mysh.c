@@ -104,7 +104,7 @@ int main(int argc, char **argv) {
 		char *cmdPwd = "pwd";
 		char *cmdExit = "exit";
 		
-		int status;
+		//int status;
 		char *token[512]; // very bad i know!
 		
 		//while( (fgets(usrInput, sizeof(usrInput), stdin) != NULL) && strcmp(usrInput, exitStr) != 0) {
@@ -155,12 +155,14 @@ int main(int argc, char **argv) {
 						if(st == -1) {
 							printError();
 						}
+						_exit(0);
 					} else if (strcmp(token[0], cmdPwd) == 0) { // pwd?
 						int st = pwd();
 						
 						if(st == -1) {
 							printError();
 						}
+						_exit(0);
 					} else if (strcmp(token[0], cmdExit) == 0) { // exit?
 						myExit(0);
 					} else { // not built in, use execvp!
@@ -176,7 +178,10 @@ int main(int argc, char **argv) {
 // 					execvp(cmd[0], cmd);
 // 					printError(); // if execvp return, then error!
 				} else { // parent
-					wait(&status); // wait for children to finish?
+					//wait(&status); // wait for children to finish?
+					if(waitpid(childpid, NULL, 0) != childpid) {
+						printError();
+					}
 				}
 			} else {
 				printError();
