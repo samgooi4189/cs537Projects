@@ -72,6 +72,21 @@ int main(int argc, char **argv) {
 	
 		batchFile = argv[1];
 		printf("Batchfiles : %s\n", batchFile);	
+
+		FILE *fopen(), fd;
+		fd = fopen("testfile.txt", "r");
+		if(fd == NULL){
+			printf("File not found");
+			exit(0);
+		}
+
+		int c = getc(fd);
+		while (c!= EOF)
+   		{
+   			putchar(c);
+			c = getc(fp);
+   		}
+   		fclose(fp);
 		
 	} else if(argc == 1) {
 	
