@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <ctype.h>
 
 void flush(void){
 	char c;
@@ -23,21 +24,41 @@ void stripEndNewLine(char *usrInput) {
 	}
 }
 
+char *trimwhitespace(char *str)
+{
+  char *end;
+
+  // Trim leading space
+  while(isspace(*str)) str++;
+
+  if(*str == 0)  // All spaces?
+    return str;
+
+  // Trim trailing space
+  end = str + strlen(str) - 1;
+  while(end > str && isspace(*end)) end--;
+
+  // Write new null terminator
+  *(end+1) = 0;
+
+  return str;
+}
+
 void printError() {
 	char error_message[30] = "An error has occured\n";
 	write(STDERR_FILENO, error_message, strlen(error_message));
 }
 
 // my own exit function
-void exit(int status) {
-	exit(status);
+void myExit(void) {
+	exit(0);
 }
 
 // my own cd function
+// 0 successful, -1 error
 int cd(char *args) {
 	int retStatus;
 	if(args != NULL) {
-		// 0 successful, -1 error
 		retStatus = chdir(args);
 	} else {
 		// cd to home dir
@@ -48,7 +69,7 @@ int cd(char *args) {
 } 
 
 // my own pwd function
-// exit 0 on success, -1 if fails
+// 0 on success, -1 if fails
 int pwd(void) {
 	char cwdBuf[1024];
 	char *pwdOut;
@@ -62,6 +83,28 @@ int pwd(void) {
 		return 0;
 	}
 	return 0;
+}
+
+// 0 if valid c file, -1 if invalid
+// .c once for valid file
+int validC(char *inC) {
+        char *dotC = ".c";
+        char *res = strstr(inC, dotC);
+        char *newS = strstr(res+2, dotC);
+        int isValidC = -1;
+        
+        if(res != NULL) {
+                isValidC = 0; 
+        }
+
+		// if there is atleast .c twice, invalid
+        if(newS != NULL) {
+                isValidC = -1;
+        } else {
+                isValidC = 0;
+        }
+        
+        return isValidC;
 }
 
 int main(int argc, char **argv) {
@@ -78,12 +121,6 @@ int main(int argc, char **argv) {
 		// interactive mode
 		printf("mysh> ");
 		
-<<<<<<< HEAD
-		//fgets(usrInput, sizeof(usrInput), stdin); // get input
-		//stripEndNewLine(usrInput);
-		
-=======
->>>>>>> 43b322a8036f88cbb0cde37bdbd181b79bea4c14
 		char usrInput[512];  
 		char *exitStr = "exit\n";
 		char *newLine = "\n";
@@ -92,13 +129,6 @@ int main(int argc, char **argv) {
 		char *cmdExit = "exit";
 		char *token[512]; // very bad i know!
 		
-<<<<<<< HEAD
-		int status;
-		char *token[512]; // very bad i know!
-		
-		//while( (fgets(usrInput, sizeof(usrInput), stdin) != NULL) && strcmp(usrInput, exitStr) != 0) {
-=======
->>>>>>> 43b322a8036f88cbb0cde37bdbd181b79bea4c14
 		while((fgets(usrInput, sizeof(usrInput), stdin) != NULL) && (strcmp(usrInput, exitStr) != 0)) {
 			
 			if(strlen(usrInput) == 1) { // empty command (carriage ret.)? continue!
@@ -107,6 +137,8 @@ int main(int argc, char **argv) {
 			}
 			
 			stripEndNewLine(usrInput);
+			//char *cleanInput = trimwhitespace(usrInput);
+			
 			char *cmdArg = strtok(usrInput, " ");
 			
 			if(cmdArg == NULL) { // user enter space only?
@@ -141,37 +173,6 @@ int main(int argc, char **argv) {
 			if(strcmp(token[0], cmdCd) == 0) { // cd?
 				int st = cd(token[1]);
 				
-<<<<<<< HEAD
-					// check whether the cmd is built in or not
-					if(strcmp(token[0], cmdCd) == 0) { // cd?
-						int st = cd(token[1]);
-						
-						if(st == -1) {
-							printError();
-						}
-					} else if (strcmp(token[0], cmdPwd) == 0) { // pwd?
-						int st = pwd();
-						
-						if(st == -1) {
-							printError();
-						}
-					} else if (strcmp(token[0], cmdExit) == 0) { // exit?
-						exit(0);
-					} else { // not built in, use execvp!
-						execvp(token[0], token);
-						printError();
-					}	
-					
-					// EXAMPLE
-// 					char *cmd[1];
-// 					cmd[0] = "ls";
-// 					cmd[1] = NULL;
-// 					
-// 					execvp(cmd[0], cmd);
-// 					printError(); // if execvp return, then error!
-				} else { // parent
-					wait(&status); // wait for children to finish?
-=======
 				if(st == -1) {
 					printError();
 				}
@@ -182,7 +183,7 @@ int main(int argc, char **argv) {
 					printError();
 				}
 			} else if (strcmp(token[0], cmdExit) == 0) { // exit?
-				myExit(0);
+				myExit();
 			} else { // not built in, use child
 				
 				pid_t childpid = fork();
@@ -200,28 +201,20 @@ int main(int argc, char **argv) {
 					}
 				} else {
 					printError();
->>>>>>> 43b322a8036f88cbb0cde37bdbd181b79bea4c14
 				}
 			}
 			
-			flush(); // use my own flush!			
+			//flush(); // use my own flush!			
 			printf("mysh> ");
 		
 		}
 		
 		printf("exit it is then..\n");
-<<<<<<< HEAD
-		exit(0);
-
-	} else {
-		// ERROR invalid # of arguments
-=======
-		myExit(0);
+		myExit();
 
 	} else {
 		// ERROR invalid # of arguments
 		printError();
->>>>>>> 43b322a8036f88cbb0cde37bdbd181b79bea4c14
 	}
 	
 	return 0;
