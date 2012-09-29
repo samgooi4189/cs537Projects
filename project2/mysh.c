@@ -88,6 +88,12 @@ int pwd(void) {
 // 0 if valid c file, -1 if invalid
 // .c once for valid file
 int validC(char *inC) {
+
+		char *dot = ".";
+		if(strcmp(inC[0],'.') != 0) { // filename start with .
+			return -1;
+		}
+		
         char *dotC = ".c";
         char *res = strstr(inC, dotC);
         char *newS = strstr(res+2, dotC);
