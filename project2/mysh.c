@@ -102,17 +102,20 @@ int validC(char *inC) {
 		}
 		
         char *dotC = ".c";
-        char *res = strstr(inC, dotC);
-        char *newS = strstr(res+2, dotC);
         int isValidC = -1;
+        char *res = strstr(inC, dotC);
         
         if(res != NULL) {
-                isValidC = 0; 
+            isValidC = 0; // still need to check if there is another .c substring
+        } else {
+        	return -1;
         }
 
+        char *newS = strstr(res+2, dotC);
+        
 		// if there is atleast .c twice, invalid
         if(newS != NULL) {
-                isValidC = -1;
+                 return -1;
         } else {
                 isValidC = 0;
         }
