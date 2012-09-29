@@ -10,6 +10,7 @@ void flush(void){
 	while((c = getchar()) != '\n' && c != EOF)
 		/* discard */ ;
 }
+// END OF FLUSH
 
 void stripEndNewLine(char *usrInput) {
 	int i = 0;
@@ -23,6 +24,7 @@ void stripEndNewLine(char *usrInput) {
 		usrInput[i-1] = '\0'; // replace carriage ret and newline with null
 	}
 }
+// END OF STRIPENDNEWLINE
 
 char *trimwhitespace(char *str)
 {
@@ -43,19 +45,22 @@ char *trimwhitespace(char *str)
 
   return str;
 }
+// END OF TRIMWHITESPACE
 
 void printError() {
 	char error_message[30] = "An error has occured\n";
 	write(STDERR_FILENO, error_message, strlen(error_message));
 }
+// END OF PRINTERROR
 
-// my own exit function
+/* my own exit function */
 void myExit(void) {
 	exit(0);
 }
+// END OF MYEXIT
 
-// my own cd function
-// 0 successful, -1 error
+/* my own cd function
+ 0 successful, -1 error */
 int cd(char *args) {
 	int retStatus;
 	if(args != NULL) {
@@ -67,9 +72,10 @@ int cd(char *args) {
 	}
 	return retStatus;
 } 
+// END OF CD
 
-// my own pwd function
-// 0 on success, -1 if fails
+/* my own pwd function
+ 0 on success, -1 if fails */
 int pwd(void) {
 	char cwdBuf[1024];
 	char *pwdOut;
@@ -84,13 +90,14 @@ int pwd(void) {
 	}
 	return 0;
 }
+// END OF PWD
 
-// 0 if valid c file, -1 if invalid
-// .c once for valid file
+/* 0 if valid c file, -1 if invalid
+ .c once for valid file */
 int validC(char *inC) {
 
 		char *dot = ".";
-		if(strcmp(inC[0],'.') != 0) { // filename start with .
+		if(strcmp(&(inC[0]),dot) == 0) { // filename start with .
 			return -1;
 		}
 		
@@ -112,6 +119,8 @@ int validC(char *inC) {
         
         return isValidC;
 }
+// END OF VALIDC
+
 
 int main(int argc, char **argv) {
 
@@ -174,7 +183,7 @@ int main(int argc, char **argv) {
 				printf("token[%d] : %s\n", i, token[i]);
 				i++;
 			}
-			
+				
 			// check whether the cmd is built in or not
 			if(strcmp(token[0], cmdCd) == 0) { // cd?
 				int st = cd(token[1]);
@@ -190,6 +199,73 @@ int main(int argc, char **argv) {
 				}
 			} else if (strcmp(token[0], cmdExit) == 0) { // exit?
 				myExit();
+			} else if (validC(token[0]) == 0) { // fun features!
+				
+				int k;
+				char *argRun[512]; // arguments for running compiled program!
+				argRun[0] = "./a.out"; // generic output for gcc
+
+				// <file.c> arg1
+				// will cause argRun[1] = arg1 / argRun[1] = token[1]
+				for(k = 1; k < i; k++) { 
+					argRun[k] = token[k];
+				}
+				argRun[i] = '\0'; // null terminate the args
+				
+				// CHILD 1
+				pid_t childpid = fork();
+				
+				if(childpid >= 0) { // succeed
+			
+					if(childpid == 0) { // child 2
+					
+						char *argCompile[512];
+						argCompile[0] = "gcc";
+						argCompile[1] = token[0];
+						argCompile[2] = '\0';
+						
+						execvp(argCompile[0], argCompile);
+						printError();
+						myExit();
+						
+					} else { // parent
+					
+						// wait for child 1
+						if(waitpid(childpid, NULL, 0) != childpid) {
+						
+							printError();
+							
+						} else { // need to run the compiled program
+							
+							// CHILD 2
+							pid_t childpid2 = fork();
+							
+							if(childpid2 >= 0) { // succeed
+								
+								if(childpid2 == 0) { // child 2
+									execvp(argRun[0], argRun);
+									printError(); // error if return
+									myExit();
+								} else {
+								
+									// wait for child 2
+									if(waitpid(childpid2, NULL, 0) != childpid2) {
+										printError();
+									}
+								}
+								
+							} else {
+							
+								printError();
+							}
+							// END OF CHILD 2
+						}
+					}
+				} else {
+					printError();
+				} 
+				// END OF CHILD 1
+				
 			} else { // not built in, use child
 				
 				pid_t childpid = fork();
@@ -198,7 +274,7 @@ int main(int argc, char **argv) {
 					if(childpid == 0) { // child
 						execvp(token[0], token);
 						printError();
-
+						myExit();
 					} else { // parent
 						// wait for child
 						if(waitpid(childpid, NULL, 0) != childpid) {
@@ -225,3 +301,4 @@ int main(int argc, char **argv) {
 	
 	return 0;
 }
+// END OF MAIN
