@@ -125,7 +125,34 @@ int validC(char *inC) {
 }
 // END OF VALIDC
 
-// helper method to redirect output
+void redirExtract(char *token[512]) {
+	char *redir = ">";
+	char *firstRedir = strstr(token[0], redir);
+	
+	// if there is no '>', don't bother to proceed
+	if(firstRedir == NULL) { 
+		return;
+	}
+	
+	int firstRedirIndex = firstRedir - token[0]; // pointer substraction to get index!
+	
+	char cmdToken[firstRedirIndex+1]; // extra one for null 
+	strncpy(cmdToken, token[0], firstRedirIndex);
+	cmdToken[firstRedirIndex] = '\0';
+	
+	// size of the substr after >
+	int outFileLen = strlen(token[0]) - firstRedirIndex; // extra one for null
+	char outputCmd[outFileLen];
+	strcpy(outputCmd, firstRedir+1); // firstRedir + 1 is the substring after >
+	
+	strcpy(token[0],cmdToken);
+	token[1] = strdup(redir);
+	token[2] = strdup(outputCmd);
+	
+} // END OF REDIR EXTRACT
+
+// helper method to redirect output 
+// for case: cmd>out
 void redirStdOut(int fd) {
         if(dup2(fd, fileno(stdout)) == -1) {
                 printError();
@@ -174,16 +201,10 @@ int main(int argc, char **argv) {
 			}
 			
 			int c = 0;
-			int redirCount = 0;
 			
 			while(cmdArg != NULL) {
 				
 				if(strcmp(cmdArg, newLine) != 0) {
-					
-					// also check for '>'
-					if(strcmp(cmdArg, redirStr) == 0) { 
-						redirCount++;			
-					}
 					
 					token[c] = strdup(cmdArg);
 				} else { // if only \n, proceed to next input
@@ -197,6 +218,22 @@ int main(int argc, char **argv) {
 			
 			token[c] = NULL; // terminate with NULL!
 						
+			if(c == 1) { // if there is just one token, check for redir case without space
+				redirExtract(token);
+			}
+			
+			int i = 0;
+			int redirCount = 0; // help to identify multiple '>'
+			
+			while(token[i] != NULL) {
+				// check for '>'
+				if(strcmp(token[i], redirStr) == 0) { 
+					redirCount++;			
+				}
+				printf("token[%d] : %s\n", i, token[i]);
+				i++;
+			}
+						
 			// if there are multiple '>' , print error 
 			// and save time from trying to parse
 			if(redirCount > 1) { 
@@ -206,11 +243,11 @@ int main(int argc, char **argv) {
 			} else if(redirCount == 1) { // user try to redirect output
 				
 				// check whether out file arg exist
-				if(strcmp(token[c-2], redirStr) == 0 &&
-				token[c-1] != NULL) {
+				if(strcmp(token[i-2], redirStr) == 0 &&
+				token[i-1] != NULL) {
 					
 					// redirect output here
-					int fd = open(token[c-1], O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+					int fd = open(token[i-1], O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
 					
 					if (fd == -1) {
 						printError();
@@ -225,16 +262,11 @@ int main(int argc, char **argv) {
 						continue;
 					}
 					
-					token[c-2] = NULL;
+					token[i-2] = NULL;
+					token[i-1] = NULL;
 					close(fd);
 		
 				} 
-			}
-			
-			int i = 0;
-			while(token[i] != NULL) {
-				printf("token[%d] : %s\n", i, token[i]);
-				i++;
 			}
 				
 			// check whether the cmd is built in or not
