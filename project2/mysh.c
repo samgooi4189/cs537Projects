@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <ctype.h>
+#include <fcntl.h>
 
 void flush(void){
 	char c;
@@ -124,6 +125,12 @@ int validC(char *inC) {
 }
 // END OF VALIDC
 
+// helper method to redirect output
+void redirStdOut(int fd) {
+        if(dup2(fd, fileno(stdout)) == -1) {
+                printError();
+        }
+} // END OF REDIRSTDOUT
 
 int main(int argc, char **argv) {
 
@@ -142,13 +149,15 @@ int main(int argc, char **argv) {
 		char usrInput[512];  
 		char *exitStr = "exit\n";
 		char *newLine = "\n";
+		char *redirStr = ">";
 		char *cmdCd = "cd";
 		char *cmdPwd = "pwd";
 		char *cmdExit = "exit";
 		char *token[512]; // very bad i know!
-		
+		int save_out = dup(fileno(stdout));
+
 		while((fgets(usrInput, sizeof(usrInput), stdin) != NULL) && (strcmp(usrInput, exitStr) != 0)) {
-			
+
 			if(strlen(usrInput) == 1) { // empty command (carriage ret.)? continue!
 				printf("mysh> "); // dont forget prompt!
 				continue;
@@ -160,17 +169,24 @@ int main(int argc, char **argv) {
 			char *cmdArg = strtok(usrInput, " ");
 			
 			if(cmdArg == NULL) { // user enter space only?
-				printf("mysh> "); // dont forget prompt!
+				printf("mysh> "); 
 				continue;
 			}
 			
 			int c = 0;
+			int redirCount = 0;
 			
 			while(cmdArg != NULL) {
 				
 				if(strcmp(cmdArg, newLine) != 0) {
+					
+					// also check for '>'
+					if(strcmp(cmdArg, redirStr) == 0) { 
+						redirCount++;			
+					}
+					
 					token[c] = strdup(cmdArg);
-				} else {
+				} else { // if only \n, proceed to next input
 					cmdArg = strtok(NULL, " "); // get next token
 					continue; 
 				}
@@ -180,6 +196,40 @@ int main(int argc, char **argv) {
 			}
 			
 			token[c] = NULL; // terminate with NULL!
+						
+			// if there are multiple '>' , print error 
+			// and save time from trying to parse
+			if(redirCount > 1) { 
+				printError();
+				printf("mysh> ");
+				continue;
+			} else if(redirCount == 1) { // user try to redirect output
+				
+				// check whether out file arg exist
+				if(strcmp(token[c-2], redirStr) == 0 &&
+				token[c-1] != NULL) {
+					
+					// redirect output here
+					int fd = open(token[c-1], O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+					
+					if (fd == -1) {
+						printError();
+						printf("mysh> ");
+						continue;
+					}
+					
+					if(dup2(fd, 1) == -1) { // output go to file
+						printError();
+						close(fd);
+						printf("mysh> ");
+						continue;
+					}
+					
+					token[c-2] = NULL;
+					close(fd);
+		
+				} 
+			}
 			
 			int i = 0;
 			while(token[i] != NULL) {
@@ -289,6 +339,7 @@ int main(int argc, char **argv) {
 				}
 			}
 			
+			redirStdOut(save_out);
 			//flush(); // use my own flush!			
 			printf("mysh> ");
 		
