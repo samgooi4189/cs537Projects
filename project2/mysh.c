@@ -146,7 +146,7 @@ void redirExtract(char *token[512]) {
 	char outputCmd[outFileLen];
 	strcpy(outputCmd, firstRedir+1); // firstRedir + 1 is the substring after >
 	
-	strcpy(token[0],cmdToken);
+	token[0] = strdup(cmdToken);
 	token[1] = strdup(redir);
 	token[2] = strdup(outputCmd);
 	
@@ -160,6 +160,13 @@ void redirStdOut(int fd) {
         }
 } // END OF REDIRSTDOUT
 
+void freeStrDuped(char *token[512], int usedTokenLen) {
+	int j;
+	for(j = 0; j < usedTokenLen; j++) {
+		free(token[j]);
+	}
+}
+
 int main(int argc, char **argv) {
 
 	char *batchFile = "no/such/file";
@@ -170,6 +177,7 @@ int main(int argc, char **argv) {
 
 		batchFile = strdup(argv[1]);
 		sourceStream = fopen(batchFile, "r");
+		free(batchFile);
 		
 		if(sourceStream == NULL) {
 			printError();
