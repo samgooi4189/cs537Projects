@@ -164,9 +164,15 @@ int main(int argc, char **argv) {
 	char *batchFile = "no/such/file";
 	
 	if(argc == 2 ) { // batch mode
-	
+		char line[512];
 		batchFile = argv[1];
 		printf("Batchfiles : %s\n", batchFile);	
+
+		FILE* fd = fopen(argv[1], "r");
+		while(fgets(line, sizeof(line), fd)!= NULL){
+			printf("%s", line);
+		}
+		fclose(fd);
 		
 	} else if(argc == 1) {
 	
