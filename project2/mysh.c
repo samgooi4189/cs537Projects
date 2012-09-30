@@ -242,9 +242,16 @@ int main(int argc, char **argv) {
 				continue;
 			} else if(redirCount == 1) { // user try to redirect output
 				
+				// without redir source? error!
+				if(strcmp(token[0], redirStr) == 0) {
+					printError();
+					printf("mysh> ");
+					continue;
+				}
+				
 				// check whether out file arg exist
 				if(strcmp(token[i-2], redirStr) == 0 &&
-				token[i-1] != NULL) {
+				token[i-1] != NULL && token[0] != NULL) {
 					
 					// redirect output here
 					int fd = open(token[i-1], O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
