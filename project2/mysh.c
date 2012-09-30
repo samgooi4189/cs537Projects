@@ -86,7 +86,8 @@ int pwd(void) {
 	if(pwdOut == NULL) { // if getcwd fail
 		return -1;
 	} else {
-		printf("%s\n", pwdOut);
+		write(STDOUT_FILENO, pwdOut, strlen(pwdOut));
+		write(STDOUT_FILENO, "\n", 1);
 		return 0;
 	}
 	return 0;
@@ -162,235 +163,237 @@ void redirStdOut(int fd) {
 int main(int argc, char **argv) {
 
 	char *batchFile = "no/such/file";
+	//int write_fd = STDOUT_FILENO;
+	FILE * sourceStream = stdin;
 	
-	if(argc == 2 ) { // batch mode
-	
-		batchFile = argv[1];
-		printf("Batchfiles : %s\n", batchFile);	
-		
+	if(argc == 2) { // batch mode
+
+		batchFile = strdup(argv[1]);
+		sourceStream = fopen(batchFile, "r");
+
 	} else if(argc == 1) {
+
+	} else { // error
+		printError();
+	}
 	
-		// interactive mode
-		printf("mysh> ");
+	char usrInput[512];  
+	char *myshStr = "mysh> ";
+	char *exitStr = "exit\n";
+	char *newLine = "\n";
+	char *redirStr = ">";
+	char *cmdCd = "cd";
+	char *cmdPwd = "pwd";
+	char *cmdExit = "exit";
+	char *token[512]; // very bad i know!
+	int save_out = dup(fileno(stdout));
+	
+	// interactive mode
+	write(STDOUT_FILENO, myshStr, strlen(myshStr));
+	
+	while((fgets(usrInput, sizeof(usrInput), sourceStream) != NULL) && (strcmp(usrInput, exitStr) != 0)) {
+
+		if(strlen(usrInput) == 1) { // empty command (carriage ret.)? continue!
+			write(STDOUT_FILENO, myshStr, strlen(myshStr)); // dont forget prompt!
+			continue;
+		}
 		
-		char usrInput[512];  
-		char *exitStr = "exit\n";
-		char *newLine = "\n";
-		char *redirStr = ">";
-		char *cmdCd = "cd";
-		char *cmdPwd = "pwd";
-		char *cmdExit = "exit";
-		char *token[512]; // very bad i know!
-		int save_out = dup(fileno(stdout));
-
-		while((fgets(usrInput, sizeof(usrInput), stdin) != NULL) && (strcmp(usrInput, exitStr) != 0)) {
-
-			if(strlen(usrInput) == 1) { // empty command (carriage ret.)? continue!
-				printf("mysh> "); // dont forget prompt!
-				continue;
-			}
+		stripEndNewLine(usrInput);
+		//char *cleanInput = trimwhitespace(usrInput);
+		
+		char *cmdArg = strtok(usrInput, " ");
+		
+		if(cmdArg == NULL) { // user enter space only?
+			write(STDOUT_FILENO, myshStr, strlen(myshStr)); 
+			continue;
+		}
+		
+		int c = 0;
+		
+		while(cmdArg != NULL) {
 			
-			stripEndNewLine(usrInput);
-			//char *cleanInput = trimwhitespace(usrInput);
-			
-			char *cmdArg = strtok(usrInput, " ");
-			
-			if(cmdArg == NULL) { // user enter space only?
-				printf("mysh> "); 
-				continue;
-			}
-			
-			int c = 0;
-			
-			while(cmdArg != NULL) {
+			if(strcmp(cmdArg, newLine) != 0) {
 				
-				if(strcmp(cmdArg, newLine) != 0) {
+				token[c] = strdup(cmdArg);
+			} else { // if only \n, proceed to next input
+				cmdArg = strtok(NULL, " "); // get next token
+				continue; 
+			}
+
+			cmdArg = strtok(NULL, " ");
+			c++; // increase counter
+		}
+		
+		token[c] = NULL; // terminate with NULL!
 					
-					token[c] = strdup(cmdArg);
-				} else { // if only \n, proceed to next input
-					cmdArg = strtok(NULL, " "); // get next token
-					continue; 
-				}
-
-				cmdArg = strtok(NULL, " ");
-				c++; // increase counter
+		if(c == 1) { // if there is just one token, check for redir case without space
+			redirExtract(token);
+		}
+		
+		int i = 0;
+		int redirCount = 0; // help to identify multiple '>'
+		
+		while(token[i] != NULL) {
+			// check for '>'
+			if(strcmp(token[i], redirStr) == 0) { 
+				redirCount++;			
 			}
 			
-			token[c] = NULL; // terminate with NULL!
-						
-			if(c == 1) { // if there is just one token, check for redir case without space
-				redirExtract(token);
-			}
+			//printf("token[%d] : %s\n", i, token[i]);
+			i++;
+		}
+					
+		// if there are multiple '>' , print error 
+		// and save time from trying to parse
+		if(redirCount > 1) { 
+			printError();
+			write(STDOUT_FILENO, myshStr, strlen(myshStr));
+			continue;
+		} else if(redirCount == 1) { // user try to redirect output
 			
-			int i = 0;
-			int redirCount = 0; // help to identify multiple '>'
-			
-			while(token[i] != NULL) {
-				// check for '>'
-				if(strcmp(token[i], redirStr) == 0) { 
-					redirCount++;			
-				}
-				printf("token[%d] : %s\n", i, token[i]);
-				i++;
-			}
-						
-			// if there are multiple '>' , print error 
-			// and save time from trying to parse
-			if(redirCount > 1) { 
+			// without redir source? error!
+			if(strcmp(token[0], redirStr) == 0) {
 				printError();
-				printf("mysh> ");
+				write(STDOUT_FILENO, myshStr, strlen(myshStr));
 				continue;
-			} else if(redirCount == 1) { // user try to redirect output
+			}
+			
+			// check whether out file arg exist
+			if(strcmp(token[i-2], redirStr) == 0 &&
+			token[i-1] != NULL && token[0] != NULL) {
 				
-				// without redir source? error!
-				if(strcmp(token[0], redirStr) == 0) {
+				// redirect output here
+				int fd = open(token[i-1], O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+				
+				if (fd == -1) {
 					printError();
-					printf("mysh> ");
+					write(STDOUT_FILENO, myshStr, strlen(myshStr));
 					continue;
 				}
 				
-				// check whether out file arg exist
-				if(strcmp(token[i-2], redirStr) == 0 &&
-				token[i-1] != NULL && token[0] != NULL) {
-					
-					// redirect output here
-					int fd = open(token[i-1], O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
-					
-					if (fd == -1) {
-						printError();
-						printf("mysh> ");
-						continue;
-					}
-					
-					if(dup2(fd, 1) == -1) { // output go to file
-						printError();
-						close(fd);
-						printf("mysh> ");
-						continue;
-					}
-					
-					token[i-2] = NULL;
-					token[i-1] = NULL;
+				if(dup2(fd, 1) == -1) { // output go to file
+					printError();
 					close(fd);
-		
-				} 
-			}
-				
-			// check whether the cmd is built in or not
-			if(strcmp(token[0], cmdCd) == 0) { // cd?
-				int st = cd(token[1]);
-				
-				if(st == -1) {
-					printError();
+					write(STDOUT_FILENO, myshStr, strlen(myshStr));
+					continue;
 				}
-			} else if (strcmp(token[0], cmdPwd) == 0) { // pwd?
-				int st = pwd();
 				
-				if(st == -1) {
-					printError();
-				}
-			} else if (strcmp(token[0], cmdExit) == 0) { // exit?
-				myExit();
-			} else if (validC(token[0]) == 0) { // fun features!
-				
-				int k;
-				char *argRun[512]; // arguments for running compiled program!
-				argRun[0] = "./a.out"; // generic output for gcc
-
-				// <file.c> arg1
-				// will cause argRun[1] = arg1 / argRun[1] = token[1]
-				for(k = 1; k < i; k++) { 
-					argRun[k] = token[k];
-				}
-				argRun[i] = '\0'; // null terminate the args
-				
-				// CHILD 1
-				pid_t childpid = fork();
-				
-				if(childpid >= 0) { // succeed
+				token[i-2] = NULL;
+				token[i-1] = NULL;
+				close(fd);
+	
+			} 
+		}
 			
-					if(childpid == 0) { // child 2
+		// check whether the cmd is built in or not
+		if(strcmp(token[0], cmdCd) == 0) { // cd?
+			int st = cd(token[1]);
+			
+			if(st == -1) {
+				printError();
+			}
+		} else if (strcmp(token[0], cmdPwd) == 0) { // pwd?
+			int st = pwd();
+			
+			if(st == -1) {
+				printError();
+			}
+		} else if (strcmp(token[0], cmdExit) == 0) { // exit?
+			myExit();
+		} else if (validC(token[0]) == 0) { // fun features!
+			
+			int k;
+			char *argRun[512]; // arguments for running compiled program!
+			argRun[0] = "./a.out"; // generic output for gcc
+
+			// <file.c> arg1
+			// will cause argRun[1] = arg1 / argRun[1] = token[1]
+			for(k = 1; k < i; k++) { 
+				argRun[k] = token[k];
+			}
+			argRun[i] = '\0'; // null terminate the args
+			
+			// CHILD 1
+			pid_t childpid = fork();
+			
+			if(childpid >= 0) { // succeed
+		
+				if(childpid == 0) { // child 2
+				
+					char *argCompile[512];
+					argCompile[0] = "gcc";
+					argCompile[1] = token[0];
+					argCompile[2] = '\0';
 					
-						char *argCompile[512];
-						argCompile[0] = "gcc";
-						argCompile[1] = token[0];
-						argCompile[2] = '\0';
-						
-						execvp(argCompile[0], argCompile);
+					execvp(argCompile[0], argCompile);
+					printError();
+					myExit();
+					
+				} else { // parent
+				
+					// wait for child 1
+					if(waitpid(childpid, NULL, 0) != childpid) {
+					
 						printError();
-						myExit();
 						
-					} else { // parent
-					
-						// wait for child 1
-						if(waitpid(childpid, NULL, 0) != childpid) {
+					} else { // need to run the compiled program
 						
-							printError();
+						// CHILD 2
+						pid_t childpid2 = fork();
+						
+						if(childpid2 >= 0) { // succeed
 							
-						} else { // need to run the compiled program
-							
-							// CHILD 2
-							pid_t childpid2 = fork();
-							
-							if(childpid2 >= 0) { // succeed
-								
-								if(childpid2 == 0) { // child 2
-									execvp(argRun[0], argRun);
-									printError(); // error if return
-									myExit();
-								} else {
-								
-									// wait for child 2
-									if(waitpid(childpid2, NULL, 0) != childpid2) {
-										printError();
-									}
-								}
-								
+							if(childpid2 == 0) { // child 2
+								execvp(argRun[0], argRun);
+								printError(); // error if return
+								myExit();
 							} else {
 							
-								printError();
+								// wait for child 2
+								if(waitpid(childpid2, NULL, 0) != childpid2) {
+									printError();
+								}
 							}
-							// END OF CHILD 2
-						}
-					}
-				} else {
-					printError();
-				} 
-				// END OF CHILD 1
-				
-			} else { // not built in, use child
-				
-				pid_t childpid = fork();
-				
-				if(childpid >= 0) { // succeed
-					if(childpid == 0) { // child
-						execvp(token[0], token);
-						printError();
-						myExit();
-					} else { // parent
-						// wait for child
-						if(waitpid(childpid, NULL, 0) != childpid) {
+							
+						} else {
+						
 							printError();
 						}
+						// END OF CHILD 2
 					}
-				} else {
-					printError();
 				}
-			}
+			} else {
+				printError();
+			} 
+			// END OF CHILD 1
 			
-			redirStdOut(save_out);
-			//flush(); // use my own flush!			
-			printf("mysh> ");
-		
+		} else { // not built in, use child
+			
+			pid_t childpid = fork();
+			
+			if(childpid >= 0) { // succeed
+				if(childpid == 0) { // child
+					execvp(token[0], token);
+					printError();
+					myExit();
+				} else { // parent
+					// wait for child
+					if(waitpid(childpid, NULL, 0) != childpid) {
+						printError();
+					}
+				}
+			} else {
+				printError();
+			}
 		}
 		
-		printf("exit it is then..\n");
-		myExit();
-
-	} else {
-		// ERROR invalid # of arguments
-		printError();
+		redirStdOut(save_out);
+		//flush(); // use my own flush!			
+		write(STDOUT_FILENO, myshStr, strlen(myshStr));
+	
 	}
+	
+	myExit();
 	
 	return 0;
 }
