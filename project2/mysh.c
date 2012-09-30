@@ -170,6 +170,11 @@ int main(int argc, char **argv) {
 
 		batchFile = strdup(argv[1]);
 		sourceStream = fopen(batchFile, "r");
+		
+		if(sourceStream == NULL) {
+			printError();
+			myExit();
+		}
 
 	} else if(argc == 1) {
 
