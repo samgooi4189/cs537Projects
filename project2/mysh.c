@@ -170,11 +170,12 @@ void freeStrDuped(char *token[512], int usedTokenLen) {
 int main(int argc, char **argv) {
 
 	char *batchFile = "no/such/file";
-	//int write_fd = STDOUT_FILENO;
+	int processMode = 0; // 0 for batch mode, 1 for interactive mode
 	FILE * sourceStream = stdin;
 	
 	if(argc == 2) { // batch mode
 
+		processMode = 0; // set to batch mode
 		batchFile = strdup(argv[1]);
 		sourceStream = fopen(batchFile, "r");
 		free(batchFile);
@@ -185,7 +186,7 @@ int main(int argc, char **argv) {
 		}
 
 	} else if(argc == 1) {
-
+		processMode = 1; // set to interactive mode
 	} else { // error
 		printError();
 	}
@@ -202,13 +203,22 @@ int main(int argc, char **argv) {
 	int save_out = dup(fileno(stdout));
 	
 	// interactive mode
-	write(STDOUT_FILENO, myshStr, strlen(myshStr));
+	if(processMode == 1) {
+		write(STDOUT_FILENO, myshStr, strlen(myshStr));
+	}
 	
 	while((fgets(usrInput, sizeof(usrInput), sourceStream) != NULL) && (strcmp(usrInput, exitStr) != 0)) {
 
 		if(strlen(usrInput) == 1) { // empty command (carriage ret.)? continue!
-			write(STDOUT_FILENO, myshStr, strlen(myshStr)); // dont forget prompt!
+			if(processMode == 1) {
+				write(STDOUT_FILENO, myshStr, strlen(myshStr));
+			}
 			continue;
+		}
+		
+		// print the cmd for batch mode
+		if(processMode == 0) {
+			write(STDOUT_FILENO, usrInput, strlen(usrInput));
 		}
 		
 		stripEndNewLine(usrInput);
@@ -217,7 +227,9 @@ int main(int argc, char **argv) {
 		char *cmdArg = strtok(usrInput, " ");
 		
 		if(cmdArg == NULL) { // user enter space only?
-			write(STDOUT_FILENO, myshStr, strlen(myshStr)); 
+			if(processMode == 1) {
+				write(STDOUT_FILENO, myshStr, strlen(myshStr));
+			}
 			continue;
 		}
 		
@@ -260,14 +272,18 @@ int main(int argc, char **argv) {
 		// and save time from trying to parse
 		if(redirCount > 1) { 
 			printError();
-			write(STDOUT_FILENO, myshStr, strlen(myshStr));
+			if(processMode == 1) {
+				write(STDOUT_FILENO, myshStr, strlen(myshStr));
+			}
 			continue;
 		} else if(redirCount == 1) { // user try to redirect output
 			
 			// without redir source? error!
 			if(strcmp(token[0], redirStr) == 0) {
 				printError();
+				if(processMode == 1) {
 				write(STDOUT_FILENO, myshStr, strlen(myshStr));
+				}
 				continue;
 			}
 			
@@ -280,14 +296,18 @@ int main(int argc, char **argv) {
 				
 				if (fd == -1) {
 					printError();
-					write(STDOUT_FILENO, myshStr, strlen(myshStr));
+					if(processMode == 1) {
+						write(STDOUT_FILENO, myshStr, strlen(myshStr));
+					}
 					continue;
 				}
 				
 				if(dup2(fd, 1) == -1) { // output go to file
 					printError();
 					close(fd);
-					write(STDOUT_FILENO, myshStr, strlen(myshStr));
+					if(processMode == 1) {
+						write(STDOUT_FILENO, myshStr, strlen(myshStr));
+					}
 					continue;
 				}
 				
@@ -401,9 +421,11 @@ int main(int argc, char **argv) {
 		}
 		
 		redirStdOut(save_out);
-		//flush(); // use my own flush!			
-		write(STDOUT_FILENO, myshStr, strlen(myshStr));
-	
+		//flush(); // use my own flush!	
+		if(processMode == 1) {
+			write(STDOUT_FILENO, myshStr, strlen(myshStr));
+		}		
+
 	}
 	
 	myExit();
