@@ -49,14 +49,14 @@ char *trimwhitespace(char *str)
 // END OF TRIMWHITESPACE
 
 void printError() {
-	char error_message[30] = "An error has occured\n";
+	char error_message[30] = "An error has occurred\n";
 	write(STDERR_FILENO, error_message, strlen(error_message));
 }
 // END OF PRINTERROR
 
 /* my own exit function */
-void myExit(void) {
-	exit(0);
+void myExit(int status) {
+	exit(status);
 }
 // END OF MYEXIT
 
@@ -182,18 +182,19 @@ int main(int argc, char **argv) {
 		
 		if(sourceStream == NULL) {
 			printError();
-			myExit();
+			myExit(1);
 		}
 
 	} else if(argc == 1) {
 		processMode = 1; // set to interactive mode
 	} else { // error
 		printError();
+		myExit(1);
 	}
 	
 	char usrInput[512];  
 	char *myshStr = "mysh> ";
-	char *exitStr = "exit\n";
+	//char *exitStr = "exit\n";
 	char *newLine = "\n";
 	char *redirStr = ">";
 	char *cmdCd = "cd";
@@ -207,7 +208,7 @@ int main(int argc, char **argv) {
 		write(STDOUT_FILENO, myshStr, strlen(myshStr));
 	}
 	
-	while((fgets(usrInput, sizeof(usrInput), sourceStream) != NULL) && (strcmp(usrInput, exitStr) != 0)) {
+	while(fgets(usrInput, sizeof(usrInput), sourceStream) != NULL) {
 
 		if(strlen(usrInput) == 1) { // empty command (carriage ret.)? continue!
 			if(processMode == 1) {
@@ -277,7 +278,7 @@ int main(int argc, char **argv) {
 			}
 			continue;
 		} else if(redirCount == 1) { // user try to redirect output
-			
+						
 			// without redir source? error!
 			if(strcmp(token[0], redirStr) == 0) {
 				printError();
@@ -315,7 +316,14 @@ int main(int argc, char **argv) {
 				token[i-1] = NULL;
 				close(fd);
 	
-			} 
+			} else {
+				printError();
+				
+				if(processMode == 1) {
+					write(STDOUT_FILENO, myshStr, strlen(myshStr));
+				}
+				continue;
+			}
 		}
 			
 		// check whether the cmd is built in or not
@@ -326,13 +334,23 @@ int main(int argc, char **argv) {
 				printError();
 			}
 		} else if (strcmp(token[0], cmdPwd) == 0) { // pwd?
+			if(token[1] != NULL) {
+				printError();
+				myExit(0);
+			}
+			
 			int st = pwd();
 			
 			if(st == -1) {
 				printError();
 			}
 		} else if (strcmp(token[0], cmdExit) == 0) { // exit?
-			myExit();
+			if(token[1] != NULL) {
+				printError();
+				myExit(0);
+			}
+			
+			myExit(0);
 		} else if (validC(token[0]) == 0) { // fun features!
 			
 			int k;
@@ -360,7 +378,7 @@ int main(int argc, char **argv) {
 					
 					execvp(argCompile[0], argCompile);
 					printError();
-					myExit();
+					myExit(1);
 					
 				} else { // parent
 				
@@ -379,7 +397,7 @@ int main(int argc, char **argv) {
 							if(childpid2 == 0) { // child 2
 								execvp(argRun[0], argRun);
 								printError(); // error if return
-								myExit();
+								myExit(1);
 							} else {
 							
 								// wait for child 2
@@ -408,7 +426,7 @@ int main(int argc, char **argv) {
 				if(childpid == 0) { // child
 					execvp(token[0], token);
 					printError();
-					myExit();
+					myExit(1);
 				} else { // parent
 					// wait for child
 					if(waitpid(childpid, NULL, 0) != childpid) {
@@ -428,7 +446,7 @@ int main(int argc, char **argv) {
 
 	}
 	
-	myExit();
+	myExit(0);
 	
 	return 0;
 }
