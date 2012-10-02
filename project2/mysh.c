@@ -192,7 +192,7 @@ int main(int argc, char **argv) {
 		myExit(1);
 	}
 	
-	char usrInput[512];  
+	char usrInput[513];  
 	char *myshStr = "mysh> ";
 	//char *exitStr = "exit\n";
 	char *newLine = "\n";
@@ -209,10 +209,19 @@ int main(int argc, char **argv) {
 	}
 	
 	while(fgets(usrInput, sizeof(usrInput), sourceStream) != NULL) {
-
+		
+		// if the 512th char is not newline or null, user must have entered more!
+		if(usrInput[512] != '\n' && usrInput[512] != '\0') {
+			usrInput[512] = '\n';
+			printError();
+			flush();
+		}
+		
 		if(strlen(usrInput) == 1) { // empty command (carriage ret.)? continue!
 			if(processMode == 1) {
 				write(STDOUT_FILENO, myshStr, strlen(myshStr));
+			} else {
+				write(STDOUT_FILENO, newLine, strlen(newLine));
 			}
 			continue;
 		}
