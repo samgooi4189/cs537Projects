@@ -8,10 +8,11 @@
 
 void flush(void){
 	char c;
-	while((c = getchar()) != '\n' && c != EOF)
+	while((c = getchar())!= '\n' && c != EOF)
 		/* discard */ ;
 }
 // END OF FLUSH
+
 
 void stripEndNewLine(char *usrInput) {
 	int i = 0;
@@ -192,7 +193,7 @@ int main(int argc, char **argv) {
 		myExit(1);
 	}
 	
-	char usrInput[513];  
+	char usrInput[514];  
 	char *myshStr = "mysh> ";
 	//char *exitStr = "exit\n";
 	char *newLine = "\n";
@@ -211,12 +212,11 @@ int main(int argc, char **argv) {
 	while(fgets(usrInput, sizeof(usrInput), sourceStream) != NULL) {
 		
 		// if the 512th char is not newline or null, user must have entered more!
-		if(usrInput[512] != '\n' && usrInput[512] != '\0') {
-			usrInput[512] = '\n';
+		if(usrInput[513] != '\n' && usrInput[513] != '\0') {
+			usrInput[513] = '\n';
 			printError();
 			flush();
 		}
-		
 		if(strlen(usrInput) == 1) { // empty command (carriage ret.)? continue!
 			if(processMode == 1) {
 				write(STDOUT_FILENO, myshStr, strlen(myshStr));
@@ -430,7 +430,7 @@ int main(int argc, char **argv) {
 		} else { // not built in, use child
 			
 			pid_t childpid = fork();
-			
+						
 			if(childpid >= 0) { // succeed
 				if(childpid == 0) { // child
 					execvp(token[0], token);
@@ -445,6 +445,7 @@ int main(int argc, char **argv) {
 			} else {
 				printError();
 			}
+			
 		}
 		
 		redirStdOut(save_out);
