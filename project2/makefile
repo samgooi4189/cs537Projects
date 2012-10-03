@@ -1,5 +1,5 @@
 mysh:
-	gcc mysh.c -o mysh -Wall -g
+	gcc mysh.c -o mysh -Wall
 
 clean: 
 	rm mysh
