@@ -203,7 +203,8 @@ int main(int argc, char **argv) {
 	char *cmdExit = "exit";
 	char *token[512]; // very bad i know!
 	int save_out = dup(fileno(stdout));
-	
+	int errorflag = -1;
+
 	// interactive mode
 	if(processMode == 1) {
 		write(STDOUT_FILENO, myshStr, strlen(myshStr));
@@ -212,10 +213,29 @@ int main(int argc, char **argv) {
 	while(fgets(usrInput, sizeof(usrInput), sourceStream) != NULL) {
 		
 		// if the 512th char is not newline or null, user must have entered more!
-		if(usrInput[513] != '\n' && usrInput[513] != '\0') {
+		/*if(usrInput[513] != '\0' && usrInput[513] != '\n') {
 			usrInput[513] = '\n';
 			printError();
 			flush();
+		}*/
+	/*	if(usrInput[512] == '\0'){
+			if(usrInput[513]!='\n'){
+				printError();
+			}
+		}*/
+		if(strlen(usrInput) >= 512){
+			if(usrInput[512]=='\0'){
+				if(usrInput[513]!='\n'){
+					printError();
+					errorflag = 1;
+				}
+			}
+			else if(usrInput[512]!='\0' && usrInput[512]!='\n'){
+				if(usrInput[513]!='\n'){
+					printError();
+					errorflag = 1;
+				}
+			}
 		}
 		if(strlen(usrInput) == 1) { // empty command (carriage ret.)? continue!
 			if(processMode == 1) {
@@ -334,7 +354,13 @@ int main(int argc, char **argv) {
 				continue;
 			}
 		}
-			
+		
+		//if print error is called, skip current process
+		if(errorflag == 1){
+			errorflag = -1;
+			continue;
+		}
+
 		// check whether the cmd is built in or not
 		if(strcmp(token[0], cmdCd) == 0) { // cd?
 			int st = cd(token[1]);
