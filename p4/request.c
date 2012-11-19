@@ -28,7 +28,7 @@ void requestError(int fd, char *cause, char *errnum, char *shortmsg, char *longm
    Rio_writen(fd, buf, strlen(buf));
    printf("%s", buf);
 
-   sprintf(buf, "Content-Length: %lu\r\n\r\n", strlen(body));
+   sprintf(buf, "Content-Length: %d\r\n\r\n", strlen(body));
    Rio_writen(fd, buf, strlen(buf));
    printf("%s", buf);
 
@@ -98,6 +98,12 @@ void requestGetFiletype(char *filename, char *filetype)
       strcpy(filetype, "test/plain");
 }
 
+unsigned int millisecBetween(struct timeval start, struct timeval end){
+	return (unsigned int)(
+		 ((end.tv_sec  - start.tv_sec )*1e3)
+		+((end.tv_usec - start.tv_usec)/1e3)
+	);
+}
 
 
 void requestServeDynamic(int fd, char *filename, char *cgiargs, worker_id *workerId, conn_request* conn)
@@ -110,12 +116,12 @@ void requestServeDynamic(int fd, char *filename, char *cgiargs, worker_id *worke
    sprintf(buf, "%sServer: CS537 Web Server\r\n", buf);
 
 	 /* CS537: Your statistics go here -- fill in the 0's with something useful! */
-	 
+
 	worker_thread *tempWorker = (worker_thread *) malloc(sizeof(worker_thread));
 	tempWorker = &(workerId->workerResources->workerThreads[workerId->id]);    	
 	
-	 sprintf(buf, "%s Stat-req-arrival: %d\r\n", buf, (unsigned int)(conn->arrival_t.tv_usec/1e3));
-	 sprintf(buf, "%s Stat-req-dispatch: %d\r\n", buf, (unsigned int)(((conn->dispatch_t.tv_sec - conn->arrival_t.tv_sec)*1e3) + ((conn->dispatch_t.tv_usec - conn->arrival_t.tv_usec)/1e3)));
+	 sprintf(buf, "%s Stat-req-arrival: %d\r\n", buf, (unsigned int)conn->arrival_t.tv_sec);
+	 sprintf(buf, "%s Stat-req-dispatch: %d\r\n", buf, millisecBetween(conn->arrival_t, conn->dispatch_t));
 	 sprintf(buf, "%s Stat-thread-id: %d\r\n", buf, workerId->id);
 	 sprintf(buf, "%s Stat-thread-count: %d\r\n", buf, tempWorker->requestHandled);
 	 sprintf(buf, "%s Stat-thread-static: %d\r\n", buf, tempWorker->requestStatic);
@@ -163,10 +169,10 @@ void requestServeStatic(int fd, char *filename, int filesize, worker_id *workerI
 	
 	worker_thread *tempWorker = (worker_thread *) malloc(sizeof(worker_thread));
 	tempWorker = &(workerId->workerResources->workerThreads[workerId->id]);    	
-	 sprintf(buf, "%s Stat-req-arrival: %d\r\n", buf, (unsigned int)((conn->arrival_t.tv_sec * 1e3) + (conn->arrival_t.tv_usec/1e3)));
-	 sprintf(buf, "%s Stat-req-dispatch: %d\r\n", buf, (unsigned int)(((conn->dispatch_t.tv_sec - conn->arrival_t.tv_sec)*1e3) + ((conn->dispatch_t.tv_usec - conn->arrival_t.tv_usec)/1e3)));
-	 sprintf(buf, "%s Stat-req-read: %d\r\n", buf, (unsigned int)((close_read.tv_usec - start_read.tv_usec)/1e3));
-	 sprintf(buf, "%s Stat-req-complete: %d\r\n", buf, (unsigned int)(((complete_t.tv_sec - conn->arrival_t.tv_sec)*1e3)+((complete_t.tv_usec - conn->arrival_t.tv_usec)/1e3))); 
+	 sprintf(buf, "%s Stat-req-arrival: %d\r\n", buf, (unsigned int)conn->arrival_t.tv_sec);
+	 sprintf(buf, "%s Stat-req-dispatch: %d\r\n", buf, millisecBetween(conn->arrival_t, conn->dispatch_t));
+	 sprintf(buf, "%s Stat-req-read: %d\r\n", buf, millisecBetween(start_read, close_read));
+	 sprintf(buf, "%s Stat-req-complete: %d\r\n", buf, millisecBetween(conn->arrival_t, complete_t)); 
 	 sprintf(buf, "%s Stat-thread-id: %d\r\n", buf, workerId->id);
 	 sprintf(buf, "%s Stat-thread-count: %d\r\n", buf, tempWorker->requestHandled);
 	 sprintf(buf, "%s Stat-thread-static: %d\r\n", buf, tempWorker->requestStatic);
