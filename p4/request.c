@@ -98,11 +98,7 @@ void requestGetFiletype(char *filename, char *filetype)
       strcpy(filetype, "test/plain");
 }
 
-double convertToSecond(struct timeval t) {
-    int rc = gettimeofday(&t, NULL);
-    assert(rc == 0);
-    return (double) ((double)t.tv_sec + (double)t.tv_usec / 1e6);
-}
+
 
 void requestServeDynamic(int fd, char *filename, char *cgiargs, worker_id *workerId, conn_request* conn)
 {
@@ -114,12 +110,6 @@ void requestServeDynamic(int fd, char *filename, char *cgiargs, worker_id *worke
    sprintf(buf, "%sServer: CS537 Web Server\r\n", buf);
 
 	 /* CS537: Your statistics go here -- fill in the 0's with something useful! */
-	 /*struct timeval reqArrival, reqDispatch;
-	 int rc;
-	 rc = gettimeofday(&reqArrival, NULL);
-	 assert(rc == 0);
-	 rc = gettimeofday(&reqDispatch, NULL);
-	 assert(rc == 0);*/
 	 
 	worker_thread *tempWorker = (worker_thread *) malloc(sizeof(worker_thread));
 	tempWorker = &(workerId->workerResources->workerThreads[workerId->id]);    	
