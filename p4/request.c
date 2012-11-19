@@ -1,7 +1,8 @@
 //
 // request.c: Does the bulk of the work for the web server.
 // 
-
+#include <assert.h>
+#include <sys/types.h>
 #include "cs537.h"
 #include "request.h"
 
@@ -97,7 +98,13 @@ void requestGetFiletype(char *filename, char *filetype)
       strcpy(filetype, "test/plain");
 }
 
-void requestServeDynamic(int fd, char *filename, char *cgiargs)
+double convertToSecond(struct timeval t) {
+    int rc = gettimeofday(&t, NULL);
+    assert(rc == 0);
+    return (double) ((double)t.tv_sec + (double)t.tv_usec / 1e6);
+}
+
+void requestServeDynamic(int fd, char *filename, char *cgiargs, worker_id *workerId, conn_request* conn)
 {
    char buf[MAXLINE], *emptylist[] = {NULL};
 
@@ -105,6 +112,24 @@ void requestServeDynamic(int fd, char *filename, char *cgiargs)
    // The CGI script has to finish writing out the header.
    sprintf(buf, "HTTP/1.0 200 OK\r\n");
    sprintf(buf, "%sServer: CS537 Web Server\r\n", buf);
+
+	 /* CS537: Your statistics go here -- fill in the 0's with something useful! */
+	 /*struct timeval reqArrival, reqDispatch;
+	 int rc;
+	 rc = gettimeofday(&reqArrival, NULL);
+	 assert(rc == 0);
+	 rc = gettimeofday(&reqDispatch, NULL);
+	 assert(rc == 0);*/
+	 
+	worker_thread *tempWorker = (worker_thread *) malloc(sizeof(worker_thread));
+	tempWorker = &(workerId->workerResources->workerThreads[workerId->id]);    	
+	
+	 sprintf(buf, "%s Stat-req-arrival: %d\r\n", buf, (unsigned int)(conn->arrival_t.tv_usec/1e3));
+	 sprintf(buf, "%s Stat-req-dispatch: %d\r\n", buf, (unsigned int)(((conn->dispatch_t.tv_sec - conn->arrival_t.tv_sec)*1e3) + ((conn->dispatch_t.tv_usec - conn->arrival_t.tv_usec)/1e3)));
+	 sprintf(buf, "%s Stat-thread-id: %d\r\n", buf, workerId->id);
+	 sprintf(buf, "%s Stat-thread-count: %d\r\n", buf, tempWorker->requestHandled);
+	 sprintf(buf, "%s Stat-thread-static: %d\r\n", buf, tempWorker->requestStatic);
+	 sprintf(buf, "%s Stat-thread-dynamic: %d\r\n", buf, tempWorker->requestDynamic);
 
    Rio_writen(fd, buf, strlen(buf));
 
@@ -119,23 +144,44 @@ void requestServeDynamic(int fd, char *filename, char *cgiargs)
 }
 
 
-void requestServeStatic(int fd, char *filename, int filesize) 
+void requestServeStatic(int fd, char *filename, int filesize, worker_id *workerId, conn_request* conn) 
 {
    int srcfd;
    char *srcp, filetype[MAXLINE], buf[MAXBUF];
+	struct timeval start_read, close_read, complete_t;
 
    requestGetFiletype(filename, filetype);
-
+	
+	//get io open time stamp (3)
+	gettimeofday(&start_read,NULL);
    srcfd = Open(filename, O_RDONLY, 0);
 
    // Rather than call read() to read the file into memory, 
    // which would require that we allocate a buffer, we memory-map the file
    srcp = Mmap(0, filesize, PROT_READ, MAP_PRIVATE, srcfd, 0);
    Close(srcfd);
+	//get io close time stamp (3) then diff open&close
+	gettimeofday(&close_read, NULL);
 
+	//get time stamp for completion time(4)
+	gettimeofday(&complete_t, NULL);
    // put together response
    sprintf(buf, "HTTP/1.0 200 OK\r\n");
    sprintf(buf, "%sServer: CS537 Web Server\r\n", buf);
+
+	 // CS537: Your statistics go here -- fill in the 0's with something useful!
+	
+	worker_thread *tempWorker = (worker_thread *) malloc(sizeof(worker_thread));
+	tempWorker = &(workerId->workerResources->workerThreads[workerId->id]);    	
+	 sprintf(buf, "%s Stat-req-arrival: %d\r\n", buf, (unsigned int)((conn->arrival_t.tv_sec * 1e3) + (conn->arrival_t.tv_usec/1e3)));
+	 sprintf(buf, "%s Stat-req-dispatch: %d\r\n", buf, (unsigned int)(((conn->dispatch_t.tv_sec - conn->arrival_t.tv_sec)*1e3) + ((conn->dispatch_t.tv_usec - conn->arrival_t.tv_usec)/1e3)));
+	 sprintf(buf, "%s Stat-req-read: %d\r\n", buf, (unsigned int)((close_read.tv_usec - start_read.tv_usec)/1e3));
+	 sprintf(buf, "%s Stat-req-complete: %d\r\n", buf, (unsigned int)(((complete_t.tv_sec - conn->arrival_t.tv_sec)*1e3)+((complete_t.tv_usec - conn->arrival_t.tv_usec)/1e3))); 
+	 sprintf(buf, "%s Stat-thread-id: %d\r\n", buf, workerId->id);
+	 sprintf(buf, "%s Stat-thread-count: %d\r\n", buf, tempWorker->requestHandled);
+	 sprintf(buf, "%s Stat-thread-static: %d\r\n", buf, tempWorker->requestStatic);
+	 sprintf(buf, "%s Stat-thread-dynamic: %d\r\n", buf, tempWorker->requestDynamic);
+
    sprintf(buf, "%sContent-Length: %d\r\n", buf, filesize);
    sprintf(buf, "%sContent-Type: %s\r\n\r\n", buf, filetype);
 
@@ -147,46 +193,52 @@ void requestServeStatic(int fd, char *filename, int filesize)
 
 }
 
-// handle a request
-void requestHandle(int fd)
+// init a request
+void requestInit(conn_request* conn)
 {
 
-   int is_static;
-   struct stat sbuf;
    char buf[MAXLINE], method[MAXLINE], uri[MAXLINE], version[MAXLINE];
-   char filename[MAXLINE], cgiargs[MAXLINE];
    rio_t rio;
 
-   Rio_readinitb(&rio, fd);
+   Rio_readinitb(&rio, conn->fd);
    Rio_readlineb(&rio, buf, MAXLINE);
    sscanf(buf, "%s %s %s", method, uri, version);
 
    printf("%s %s %s\n", method, uri, version);
 
    if (strcasecmp(method, "GET")) {
-      requestError(fd, method, "501", "Not Implemented", "CS537 Server does not implement this method");
+      requestError(conn->fd, method, "501", "Not Implemented", "CS537 Server does not implement this method");
       return;
    }
    requestReadhdrs(&rio);
 
-   is_static = requestParseURI(uri, filename, cgiargs);
-   if (stat(filename, &sbuf) < 0) {
-      requestError(fd, filename, "404", "Not found", "CS537 Server could not find this file");
+   conn->is_static = requestParseURI(uri, conn->filename, conn->cgiargs);
+   if (stat(conn->filename, &conn->sbuf) < 0) {
+      requestError(conn->fd, conn->filename, "404", "Not found", "CS537 Server could not find this file");
       return;
    }
 
-   if (is_static) {
-      if (!(S_ISREG(sbuf.st_mode)) || !(S_IRUSR & sbuf.st_mode)) {
-         requestError(fd, filename, "403", "Forbidden", "CS537 Server could not read this file");
+   conn->size = conn->sbuf.st_size;
+   if (conn->is_static) {
+      if (!(S_ISREG(conn->sbuf.st_mode)) || !(S_IRUSR & conn->sbuf.st_mode)) {
+         requestError(conn->fd, conn->filename, "403", "Forbidden", "CS537 Server could not read this file");
          return;
       }
-      requestServeStatic(fd, filename, sbuf.st_size);
    } else {
-      if (!(S_ISREG(sbuf.st_mode)) || !(S_IXUSR & sbuf.st_mode)) {
-         requestError(fd, filename, "403", "Forbidden", "CS537 Server could not run this CGI program");
+      if (!(S_ISREG(conn->sbuf.st_mode)) || !(S_IXUSR & conn->sbuf.st_mode)) {
+         requestError(conn->fd, conn->filename, "403", "Forbidden", "CS537 Server could not run this CGI program");
          return;
       }
-      requestServeDynamic(fd, filename, cgiargs);
+   }
+}
+
+// handle a request
+void requestHandle(conn_request* conn, worker_id *workerId)
+{
+   if (conn->is_static) {
+      requestServeStatic(conn->fd, conn->filename, conn->size, workerId, conn);
+   } else {
+      requestServeDynamic(conn->fd, conn->filename, conn->cgiargs, workerId, conn);
    }
 }
 
